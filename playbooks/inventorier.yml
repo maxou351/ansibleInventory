@@ -1,0 +1,34 @@
+---
+- name: "Inventorie l'ensemble du parc"
+  hosts: all
+  vars_files: 'vars.yml'
+  tasks:
+    - name: "Create file"
+      file: 
+        state: touch
+        path: '{{namefile}}'
+      delegate_to: localhost
+    
+    - name: "Get partition disk vars"
+      block:
+        - name: "Get partition"
+          set_fact: 
+            listofpartition: "{% for mount in ansible_facts.mounts %}{% if mount.device is defined%} {{ mount.device }}(G),{% endif %}{% endfor %}"
+            valueofpartition: "{% for mount in ansible_facts.mounts %}{% if mount.size_total is defined %}, {{ (mount.size_total|float / 1000000000) | round(1, 'common') }}{% else %},  {% endif %}{% endfor %} "
+      rescue:
+        - name: "Handle errors"
+          set_fact: 
+            listofpartition: ''
+            valueofpartition: ""
+
+    - name: "Filed file"
+      lineinfile:
+        state: present
+        dest: '{{namefile}}'
+        line: '{{ item }}'
+      delegate_to: localhost
+      with_items:
+        - OS et Hostname, Uptime(s), RAM(mb), CPU(po),{{listofpartition}};
+        - '{{ ansible_facts.distribution }} {{ ansible_facts.hostname }}, {{ansible_facts.uptime_seconds}}, {{ansible_facts.memfree_mb}}, {{ansible_facts.processor_cores }}{{valueofpartition}};'
+    #  - debug: 
+    #     msg: '{{ansible_facts.mounts}}'
